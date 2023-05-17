@@ -1,19 +1,24 @@
 ---
-title: "ETC5550-Applied Forecasting-S1, 2023 Project"
+title: "Retail Forecasting Project Report"
+subtitle: "ETC5550-Applied Forecasting-S1, 2023"
 author: "Nishtha Arora (32296622)"
 Date: "`r Sys.Date()`"
 output:
     bookdown::html_document2:
-        base_format: rmdformats::html_clean
-        keep_md: no
+      theme: journal
+      toc: true
+      toc_float: true
+        # base_format: rmdformats::html_clean
+        # keep_md: no
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE)
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE, out.width = "70%")
 
-library(rmdformats)
+# library(rmdformats)
 library(fpp3)
-
+library(tidyverse)
+library(kableExtra)
 ```
 
 Objective: To forecast a real time series using ETS and ARIMA models.
@@ -27,11 +32,65 @@ myseries <- aus_retail |>
                         "A3349679W","A3349378T","A3349767W","A3349451A"))) |>
   # Select a series at random
   filter(`Series ID` == sample(`Series ID`,1))
+
+#write.csv(myseries, "datamyseries.csv")
 ```
 
 # Statistical features of the original data.
 
-# Transformations and differencing used. (including unit-root test)
+The data set used is a subset of the *aus_retail* data which contain one numeric values, i.e. Turnover in $Million AUD. *aus_retail* is a part of *tsibbledata* package and can also be loaded with the package *fpp3* which contains total 9 packages including tsibbledata.
+The data is a time series of class *tsibble* and the source for the same is [Australian Bureau of Statistics, catalogue number 8501.0, table 11.](https://www.abs.gov.au/ausstats/abs@.nsf/exnote/8501.0)(Robjhyndman, n.d.).
+
+The sample data set contains the Turnover data for the hardware, building and garden supplies retailing for the state of South Australia for the years 1982 to 2018 (calculated quarterly, i.e. over a period of 4 months) and contains `r nrow(myseries)` observations and `r ncol(myseries)` columns.
+
+```{r, include=FALSE}
+str(myseries)
+```
+
+```{r}
+data_dict <- data.frame(
+  S.No. = c("1", "2", "3", "4", "5"),
+  Variables = c ("State", "Industry", "Series ID", "Month", "Turnover" ),
+  DataType = c("Character", "Character", "Character", "Month", "Numeric"))
+
+
+knitr::kable ( data_dict ,caption = "Data Dictonary") %>% 
+  kable_styling(latex_options = c("striped", "hold_position")) %>% 
+  kable_paper("hover", full_width = T) %>% 
+  scroll_box(width = "100%", height = "300px")
+```
+
+```{r, include=FALSE}
+dup <- myseries %>% 
+  subset(duplicated (myseries))
+#no duplicates
+```
+
+```{r, fig.cap="Quantile-Quantile Plot"}
+ggplot(myseries, aes(sample = Turnover)) +
+  geom_qq() + 
+  geom_qq_line(color = "#6C03A0")+
+  ylab("Sample Turnover Values ($Million AUD)")+
+  xlab("Theoretical Values")+
+  theme_minimal()+
+  theme( plot.background = element_rect(fill = "#FFF8F7"),
+    panel.grid.major.y = element_blank())
+```
+
+
+```{r, fig.cap="Distribution of Turnover"}
+  ggplot(myseries, aes(x=Turnover)) +
+  geom_histogram(aes(y=after_stat(density)), fill = "#6EBA6B")+
+  geom_density(color = "#6C03A0") +
+  ylab("Density")+
+  xlab("Turnover ($Million AUD)")+
+  theme_minimal()+
+   theme( plot.background = element_rect(fill = "#FFF8F7"),
+    panel.grid.major.y = element_blank())
+```
+
+
+# Transformations and differencing used (including unit-root test).
 
 # Methodology used to create a short-list of appropriate ARIMA models and ETS models. (Includes AIC values as well as results from applying the models to a test-set consisting of the last 24 months of the data provided).
 
@@ -46,3 +105,15 @@ myseries <- aus_retail |>
 # Obtaining up-to-date data from the [ABS website](https://www.abs.gov.au/statistics/industry/retail-and-wholesale-trade/retail-trade-australia Table 11). - using the previous release of data, rather than the latest release and comparing above forecasts with the actual numbers.
 
 # Benefits and limitations of the models for the data.
+
+# References 
+
+Australian retail trade turnover. rdrr.io. https://rdrr.io/cran/tsibbledata/man/aus_retail.html
+
+Chang, W. (2023, May 16). 13.13 Creating a QQ Plot | R Graphics Cookbook, 2nd edition. https://r-graphics.org/recipe-miscgraph-qq
+
+Coder, R. (2021). Histogram with density in ggplot2. R CHARTS | a Collection of Charts and Graphs Made With the R Programming Language. https://r-charts.com/distribution/histogram-density-ggplot2/
+
+Retail Trade, Australia, March 2023. (2023, May 9). Australian Bureau of Statistics. https://www.abs.gov.au/statistics/industry/retail-and-wholesale-trade/retail-trade-australia/latest-release
+
+Robjhyndman. (n.d.). fpp3package/README.Rmd at master · robjhyndman/fpp3package. GitHub. https://github.com/robjhyndman/fpp3package/blob/master/README.Rmd
