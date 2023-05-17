@@ -13,12 +13,18 @@ output:
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE, out.width = "70%")
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE, out.width = "80%")
 
 # library(rmdformats)
 library(fpp3)
 library(tidyverse)
 library(kableExtra)
+#library(DataExplorer) 
+library(viridis)
+```
+
+```{r, echo=FALSE, fig.align='center', fig.width=10}
+knitr::include_graphics("Sales-Forecasting.jpg")
 ```
 
 Objective: To forecast a real time series using ETS and ARIMA models.
@@ -26,12 +32,12 @@ Objective: To forecast a real time series using ETS and ARIMA models.
 ```{r}
 set.seed(32296622)
 myseries <- aus_retail |>
-
+  #sampling
+  
   filter(!(`Series ID` %in% c("A3349561R","A3349883F","A3349499L","A3349902A",
                         "A3349588R","A3349763L","A3349372C","A3349450X",
                         "A3349679W","A3349378T","A3349767W","A3349451A"))) |>
-  # Select a series at random
-  filter(`Series ID` == sample(`Series ID`,1))
+  filter(`Series ID` == sample(`Series ID`,1)) #random series selected
 
 #write.csv(myseries, "datamyseries.csv")
 ```
@@ -42,6 +48,21 @@ The data set used is a subset of the *aus_retail* data which contain one numeric
 The data is a time series of class *tsibble* and the source for the same is [Australian Bureau of Statistics, catalogue number 8501.0, table 11.](https://www.abs.gov.au/ausstats/abs@.nsf/exnote/8501.0)(Robjhyndman, n.d.).
 
 The sample data set contains the Turnover data for the hardware, building and garden supplies retailing for the state of South Australia for the years 1982 to 2018 (calculated quarterly, i.e. over a period of 4 months) and contains `r nrow(myseries)` observations and `r ncol(myseries)` columns.
+
+```{r}
+myseries
+```
+
+```{r}
+interval(myseries)
+```
+
+```{r}
+myseries |> 
+  # mutate(year=year(Month)) |>
+  index_by(Month) |> 
+  summarise(Total_turnover= mean(Turnover))
+```
 
 ```{r, include=FALSE}
 str(myseries)
@@ -73,8 +94,10 @@ ggplot(myseries, aes(sample = Turnover)) +
   ylab("Sample Turnover Values ($Million AUD)")+
   xlab("Theoretical Values")+
   theme_minimal()+
-  theme( plot.background = element_rect(fill = "#FFF8F7"),
-    panel.grid.major.y = element_blank())
+   theme( plot.background = element_rect(fill = "#FFF8F7"),
+    panel.grid.major.y = element_blank(),
+      axis.text.x = element_text(color="#993333", angle=45, size=8),
+    axis.text.y = element_text(colour= "#08007F", size=8))
 ```
 
 
@@ -86,9 +109,84 @@ ggplot(myseries, aes(sample = Turnover)) +
   xlab("Turnover ($Million AUD)")+
   theme_minimal()+
    theme( plot.background = element_rect(fill = "#FFF8F7"),
-    panel.grid.major.y = element_blank())
+    panel.grid.major.y = element_blank(),
+        axis.text.x = element_text(color="#993333", angle=45, size=8),
+    axis.text.y = element_text(colour= "#08007F", size=8))
 ```
 
+```{r dataquality, include=FALSE}
+#plot_missing(myseries)
+#skimr::skim(myseries)
+```
+
+```{r}
+# ggplot(myseries, aes(x=Month, y=Turnover))+
+#   geom_line()
+```
+
+```{r, fig.cap="Time Series"}
+myseries |> 
+  autoplot(Turnover, color= "#C63F2C")+
+  xlab("Year/Month")+
+  ylab("Turnover ($Million AUD)")+
+  theme_minimal()+
+   theme( plot.background = element_rect(fill = "#FFF8F7"),
+    panel.grid.major.y = element_blank(),
+       axis.text.x = element_text(color="#993333", angle=45, size=8),
+    axis.text.y = element_text(colour= "#08007F", size=8))
+```
+
+```{r, fig.cap="Seasonal Plot"}
+myseries |> 
+  gg_season(Turnover, 
+            labels = "both")+
+  ylab("Turnover ($Million AUD)")+
+   scale_colour_viridis_c()+
+  theme_minimal()+
+   theme( plot.background = element_rect(fill = "#FFF8F7"),
+    panel.grid.major.y = element_blank(),
+    axis.text.x = element_text(color="#993333", angle=45, size=8),
+    axis.text.y = element_text(colour= "#08007F", size=8))
+  
+```
+
+```{r}
+myseries |> 
+  gg_subseries(Turnover, color= "#156A06")+
+  ylab("Turnover ($Million AUD)")+
+  theme_minimal()+
+   theme( plot.background = element_rect(fill = "#FFF8F7"),
+    panel.grid.major.y = element_blank(),
+      axis.text.x = element_text(color="#993333", angle=45, size=8),
+    axis.text.y = element_text(colour= "#08007F", size=8))
+  
+```
+
+```{r, fig.cap="Lag plot"}
+myseries |> 
+  gg_lag(Turnover, lags=1:24, geom='point', size=0.5)+
+  facet_wrap(~ .lag, ncol=6)+
+    ylab("Turnover ($Million AUD)")+
+  xlab("Lag")+
+  theme_minimal()+
+   theme( plot.background = element_rect(fill = "#FFF8F7"),
+    panel.grid.major.y = element_blank(),
+       axis.text.x = element_text(color="#993333", angle=45, size=8),
+    axis.text.y = element_text(colour= "#08007F", size=8))
+```
+
+```{r, fig.cap="ACF"}
+myseries |> 
+ACF(Turnover, lag_max = 46) |> 
+  autoplot()+
+  ylab("ACF")+
+  xlab("Lag [1 Month]")+
+  theme_minimal()+
+   theme( plot.background = element_rect(fill = "#FFF8F7"),
+    panel.grid.major.y = element_blank(),
+        axis.text.x = element_text(color="#993333", angle=45, size=8),
+    axis.text.y = element_text(colour= "#08007F", size=8))
+```
 
 # Transformations and differencing used (including unit-root test).
 
@@ -114,6 +212,12 @@ Chang, W. (2023, May 16). 13.13 Creating a QQ Plot | R Graphics Cookbook, 2nd ed
 
 Coder, R. (2021). Histogram with density in ggplot2. R CHARTS | a Collection of Charts and Graphs Made With the R Programming Language. https://r-charts.com/distribution/histogram-density-ggplot2/
 
+Forecasting: Principles and Practice (3rd ed). (n.d.). https://otexts.com/fpp3/
+
+Holtz, Y. (n.d.). The R Graph Gallery – Help and inspiration for R charts. The R Graph Gallery. https://r-graph-gallery.com/
+
 Retail Trade, Australia, March 2023. (2023, May 9). Australian Bureau of Statistics. https://www.abs.gov.au/statistics/industry/retail-and-wholesale-trade/retail-trade-australia/latest-release
 
 Robjhyndman. (n.d.). fpp3package/README.Rmd at master · robjhyndman/fpp3package. GitHub. https://github.com/robjhyndman/fpp3package/blob/master/README.Rmd
+
+Roy, A. (2023). What is Sales Forecasting? CX Today. https://www.cxtoday.com/contact-centre/what-is-sales-forecasting/
