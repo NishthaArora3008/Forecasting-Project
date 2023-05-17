@@ -1,0 +1,48 @@
+---
+title: "ETC5550-Applied Forecasting-S1, 2023 Project"
+author: "Nishtha Arora (32296622)"
+Date: "`r Sys.Date()`"
+output:
+    bookdown::html_document2:
+        base_format: rmdformats::html_clean
+        keep_md: no
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE)
+
+library(rmdformats)
+library(fpp3)
+
+```
+
+Objective: To forecast a real time series using ETS and ARIMA models.
+
+```{r}
+set.seed(32296622)
+myseries <- aus_retail |>
+
+  filter(!(`Series ID` %in% c("A3349561R","A3349883F","A3349499L","A3349902A",
+                        "A3349588R","A3349763L","A3349372C","A3349450X",
+                        "A3349679W","A3349378T","A3349767W","A3349451A"))) |>
+  # Select a series at random
+  filter(`Series ID` == sample(`Series ID`,1))
+```
+
+# Statistical features of the original data.
+
+# Transformations and differencing used. (including unit-root test)
+
+# Methodology used to create a short-list of appropriate ARIMA models and ETS models. (Includes AIC values as well as results from applying the models to a test-set consisting of the last 24 months of the data provided).
+
+# Choosing one ARIMA model and one ETS model based on this analysis and showing parameter estimates, residual diagnostics, forecasts and prediction intervals for both models. Also diagnostic checking for both models including ACF graphs and the Ljung-Box test is shown. 
+
+
+# Comparison of the results from each of the preferred models and the best method for better forecasts (reference to the test-set).
+
+# Applying the two chosen models to the full data set, re-estimating the parameters but not changing the model structure. Producing out-of-sample point forecasts and 80% prediction intervals for each model for two years past the end of the data provided.
+
+
+# Obtaining up-to-date data from the [ABS website](https://www.abs.gov.au/statistics/industry/retail-and-wholesale-trade/retail-trade-australia Table 11). - using the previous release of data, rather than the latest release and comparing above forecasts with the actual numbers.
+
+# Benefits and limitations of the models for the data.
