@@ -19,10 +19,13 @@ library(tidyverse)
 library(kableExtra)
 library(viridis)
 library(readabs)
+library(magick)
 ```
 
 ```{r, echo=FALSE, fig.align='center', fig.width=10}
-knitr::include_graphics("Sales-Forecasting.jpg")
+image <- image_read("https://thumbs.dreamstime.com/b/businessman-looking-far-economic-forecasting-concept-businessman-looking-far-economic-forecasting-concept-153410971.jpg")
+image
+
 ```
 
 **Objective: To forecast a real time series using ETS and ARIMA models.**
