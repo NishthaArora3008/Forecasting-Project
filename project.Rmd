@@ -25,7 +25,7 @@ library(readabs)
 knitr::include_graphics("Sales-Forecasting.jpg")
 ```
 
-Objective: To forecast a real time series using ETS and ARIMA models.
+**Objective: To forecast a real time series using ETS and ARIMA models.**
 
 ```{r dataset}
 set.seed(32296622)
@@ -153,7 +153,7 @@ Figure \@ref(fig:fig3) shows that:
 
 - Trend: There is somewhat an increasing trend visible in the data set.
 
-- Seasonality: There is a multiplicative seasonality as there is a change in height of the values with time. There are strong peaks observed at the end of each year.
+- Seasonality: There seems to be multiplicative seasonality as there is a change in height of the values with time. There are strong peaks observed at the end of each year.
 
 ```{r fig3, fig.cap="Time Series"}
 myseries |> 
@@ -331,7 +331,7 @@ It is shown that 1 seasonal difference is needed.
 
 In figure \@ref(fig:fig10), ACF shows that, the there is seasonality and is a monthly lag data, and hence, the lag is used as 12 for the first seasonal difference.
 
-```{r fig11, fig.cap("After Transforming and Seasonal Differencing")}
+```{r fig11, fig.cap="After Transforming and Seasonal Differencing"}
 myseries |> 
   gg_tsdisplay(difference(box_cox(Turnover, lambda), lag=12), plot_type = "partial")
 ```
@@ -353,7 +353,7 @@ myseries |>
 
 Here the p value is 0.1 (or > 0.1) and can be said stationary.
 
-Further checking if more differencing is required:
+Further checking if more difference is required:
 
 ```{r ndiff}
 myseries |> 
@@ -378,7 +378,7 @@ train <- myseries |>
 
 ### Shortlist of ETS models with results
 
-Observing figure \@ref(fig:fig9), we can say that error and seasonality are multiplicative. There is somewhat an upward trend which can be called as additive. The appropriate models could be (MAM), (MNM) or (MAdM). Also here the seasonality component we can also use the additive compoment to the sesonality which leads to ETS models (M,N,A) or (A,Ad,A)
+Observing figure \@ref(fig:fig9), we can say that error and seasonality are can be additive or multiplicative. There is somewhat an upward trend which can be called as additive. The appropriate models could be (MAM), (MNM) or (MAdM). Also here the seasonality component we can also use the additive component to the seasonality which leads to ETS models (M,N,A) or (A,Ad,A)
 
 ```{r etsfit}
 ets_fit <- train |> 
@@ -409,7 +409,7 @@ ets_fit |>
   accuracy(myseries)
 ```
 
-We observe that the models MAdM and ANA have the same results other than just one where the valuse for ANA is the lowest and hence we select ETS (ANA) as the best model.
+We observe that the models MAdM and ANA have the same results other than just one where the value for ANA is the lowest and hence we select ETS(ANA) as the best model.
 
 ## ARIMA
 
@@ -468,7 +468,9 @@ arima_fit |>
 
 # Choosing one ARIMA model and one ETS model based on this analysis and showing parameter estimates, residual diagnostics, forecasts and prediction intervals for both models. Also diagnostic checking for both models including ACF graphs and the Ljung-Box test is shown. 
 
-The best ETS model chosen is ANA
+The best ETS model chosen is ANA and the best ARIMA model is (102)(011)
+
+## Parameter estimates
 
 ```{r tidyets}
 ets_fit |> 
@@ -476,7 +478,6 @@ ets_fit |>
   tidy()
 ```
 
-And the best ARIMA model is (102)(011)
 
 ```{r tidyarima}
 arima_fit |> 
@@ -497,12 +498,20 @@ gg_tsresiduals(ets_fit |>
 
 ### Forecast
 
-```{r fig13, forecast_ets}
+```{r fig13, fig.cap="Forecast for ETS best model ANA"}
 ets_fit  |> 
    select(State, Industry, ets_auto) |> 
   forecast(h=24) |> 
-  autoplot(myseries)
+  autoplot(myseries)+
+  ylab("Turnover ($Million AUD)")+
+  xlab("Year Month")+
+  theme_minimal()+
+   theme( plot.background = element_rect(fill = "#FFF8F7"),
+    panel.grid.major.y = element_blank(),
+        axis.text.x = element_text(color="#993333", angle=45, size=8),
+    axis.text.y = element_text(colour= "#08007F", size=8))
 ```
+
 
 ```{r augement_ets}
 ets_fit |> 
@@ -527,7 +536,12 @@ Zooming in on figure \@ref(fig:fig12), figure \@ref(fig:fig14) suggests autocorr
 augment(ets_fit) |> 
   filter(.model== "ets_auto") |> 
   ACF(.innov) |>
-  autoplot() 
+  autoplot() +
+  theme_minimal()+
+   theme( plot.background = element_rect(fill = "#FFF8F7"),
+    panel.grid.major.y = element_blank(),
+        axis.text.x = element_text(color="#993333", angle=45, size=8),
+    axis.text.y = element_text(colour= "#08007F", size=8))
 ```
 
 ###  Ljung-Box test
@@ -540,7 +554,7 @@ augment(ets_fit) |>
   features(.innov, ljung_box, lag=24, dof=18)
 ```
 
-Here the p value is <0.05, suggesting that the values are autocorrelated, rejecting the null hypothesis.
+Here the p value is <0.05, suggesting that the values are auto correlated, rejecting the null hypothesis.
 
 ## ARIMA
 
@@ -553,11 +567,18 @@ gg_tsresiduals(arima_fit |>
 
 ### Forecast
 
-```{r fig16, forecast_arima}
+```{r fig16, fig.cap=" Forecast for best ARIMA model (102)(011)"}
 arima_fit  |> 
    select(State, Industry, arima_auto) |> 
   forecast(h=24) |> 
-  autoplot(myseries)
+  autoplot(myseries)+
+  ylab("Turnover ($Million AUD)")+
+  xlab("Year Month")+
+  theme_minimal()+
+   theme( plot.background = element_rect(fill = "#FFF8F7"),
+    panel.grid.major.y = element_blank(),
+        axis.text.x = element_text(color="#993333", angle=45, size=8),
+    axis.text.y = element_text(colour= "#08007F", size=8))
 ```
 
 ```{r augment_arima}
@@ -583,7 +604,12 @@ Figure \@ref(fig:fig17) shows that most residuals are within the blue line, show
 augment(arima_fit) |> 
   filter(.model== "arima_auto") |> 
  ACF(.innov) |>
-  autoplot() 
+  autoplot() +
+  theme_minimal()+
+   theme( plot.background = element_rect(fill = "#FFF8F7"),
+    panel.grid.major.y = element_blank(),
+        axis.text.x = element_text(color="#993333", angle=45, size=8),
+    axis.text.y = element_text(colour= "#08007F", size=8))
 ```
 
 ###  Ljung-Box test
@@ -600,7 +626,7 @@ Here, p value is <0.05 rejecting the Null Hypothesis.
 
 ## Comparison
 
-- Both the models show somehwat a normal distribution and white noise in the data (figure \@ref(fig:fig12) and \@ref(fig:fig15).
+- Both the models show somewhat a normal distribution and white noise in the data (figure \@ref(fig:fig12) and \@ref(fig:fig15).
 
 - The forecasts are similar for both models, but when augmented, the ETS has more negative values in .resid and .innov.
 
@@ -610,7 +636,7 @@ Here, p value is <0.05 rejecting the Null Hypothesis.
 
 ## Best method for better forecast for test set
 
-```{r fig18}
+```{r fig18, fig.cap="Best model forecast for test set"}
 both_best <- train |> 
   model(
   ets_auto= ETS(box_cox(Turnover, lambda)),
@@ -619,11 +645,18 @@ arima_auto= ARIMA(box_cox(Turnover, lambda))
 
 both_best |> 
   forecast(h=24) |> 
-  autoplot(test)
+  autoplot(test)+
+    ylab("Turnover ($Million AUD)")+
+  xlab("Year Month")+
+  theme_minimal()+
+   theme( plot.background = element_rect(fill = "#FFF8F7"),
+    panel.grid.major.y = element_blank(),
+        axis.text.x = element_text(color="#993333", angle=45, size=8),
+    axis.text.y = element_text(colour= "#08007F", size=8))
   
 ```
 
-Comparing figure \@ref(fig:fig18) with \@ref(fig:fig13) which is the overall forecast and comparison between both best bodels too, it shows that prediction intervals are narrow in best ARIMA.
+Comparing figure \@ref(fig:fig18) with \@ref(fig:fig13) which is the overall forecast and comparison between both best models too, it shows that prediction intervals are narrow in best ARIMA.
 
 ```{r acc_both}
 both_best |> 
@@ -631,27 +664,70 @@ both_best |>
   accuracy(myseries)
 ```
 
-The accuracy values are lower for best arima model, suggessting better forecasts.
+The accuracy values are lower for best arima model, suggesting better forecasts.
 
 
 # Applying the two chosen models to the full data set, re-estimating the parameters but not changing the model structure. Producing out-of-sample point forecasts and 80% prediction intervals for each model for two years past the end of the data provided.
 
-```{r}
+## Dataset on full data
+
+```{r best_fulldata}
 both_best2 <- myseries |> 
   model(
-  ets_auto= ETS(box_cox(Turnover, lambda)),
-arima_auto= ARIMA(box_cox(Turnover, lambda))
+  ets_ANA= ETS(box_cox(Turnover, lambda)),
+arima_102011= ARIMA(box_cox(Turnover, lambda))
 )
 ```
 
+## Re-estimating parameters
 
-\@ref(fig:fig19) shows forecast of two best models on full dataset with 80% prediction interval.
+### Estimates
 
-```{r fig19}
+```{r est_best}
+both_best2 |> 
+  tidy()
+```
+
+### Residuals
+
+```{r resid_best}
+gg_tsresiduals(both_best2 |> 
+  select(ets_ANA))+
+  ggtitle("ETS ANA Residuals on full dataset")
+
+gg_tsresiduals(both_best2 |> 
+  select(arima_102011))+
+  ggtitle("ARIMA (102)(011) Residuals on full dataset")
+```
+
+### Model diagnostics
+
+```{r aug_best}
+both_best2 |> 
+  select(ets_ANA) |> 
+  augment()
+
+both_best2 |> 
+  select(arima_102011) |> 
+  augment()
+```
+
+
+### Prodocuing out of sample forecasts
+
+Figure \@ref(fig:fig19) shows forecast of two best models on full data set with 80% prediction interval.
+
+```{r fig19, fig.cap="80% interval forecast by best models"}
 both_best2 |> 
   forecast(h=24) |> 
   autoplot(myseries, level=80)+
-  facet_wrap(~.model)
+    ylab("Turnover ($Million AUD)")+
+  xlab("Year Month")+
+  theme_minimal()+
+   theme( plot.background = element_rect(fill = "#FFF8F7"),
+    panel.grid.major.y = element_blank(),
+        axis.text.x = element_text(color="#993333", angle=45, size=8),
+    axis.text.y = element_text(colour= "#08007F", size=8))
 ```
 
 # Obtaining up-to-date data from the [ABS website](https://www.abs.gov.au/statistics/industry/retail-and-wholesale-trade/retail-trade-australia). - using the previous release of data, rather than the latest release and comparing above forecasts with the actual numbers.
@@ -675,16 +751,92 @@ abs <- abs_retail_data |>
 
 ```
 
-```{r fig20}
+Comparing figures \@ref(fig:fig20) and \@ref(fig:fig21), we see that ETS model has given lagged values whereas arima model values are closer to the actual values.
+
+```{r fig20, fig.cap="ABS data plot"}
 abs |> 
   ggplot(aes(x=Month, y=Turnover))+
-  geom_line()
-
-both_best |> 
-  forecast(h=72) |> 
-  autoplot()
+  geom_line()+
+    ylab("Turnover ($Million AUD)")+
+  xlab("Year Month")+
+  theme_minimal()+
+   theme( plot.background = element_rect(fill = "#FFF8F7"),
+    panel.grid.major.y = element_blank(),
+        axis.text.x = element_text(color="#993333", angle=45, size=8),
+    axis.text.y = element_text(colour= "#08007F", size=8))
 ```
 
+```{r fig21, fig.cap="Forecast from myseries data"}
+both_best2 |> 
+  forecast(h=51) |> 
+  autoplot()+
+    ylab("Turnover ($Million AUD)")+
+  xlab("Year Month")+
+  theme_minimal()+
+   theme( plot.background = element_rect(fill = "#FFF8F7"),
+    panel.grid.major.y = element_blank(),
+        axis.text.x = element_text(color="#993333", angle=45, size=8),
+    axis.text.y = element_text(colour= "#08007F", size=8))
+```
+
+The ABS data contain 51 more months than the myseries data. And hence, forecasting is performed for 51 months in figure \@ref(fig:fig21).
+
+Figure \@ref(fig:fig22) below shoes the residual values for both models, when compared to original ABS data.
+
+```{r fig22, fig.cap="Difference: ABS orignal vales - mean of forecasted values"}
+both_best2 |> 
+  forecast(h=51) |> 
+  mutate(Turnover.ABS= rep(abs$Turnover,times=2)) |> 
+  #we have both forecast-ed and actual values here
+  mutate(.resid=Turnover.ABS-.mean) |>  
+  #difference between ABS values and mean from forecast-ed values
+  as_tsibble() |> 
+  select(-c(State, Industry)) |> 
+  autoplot(.resid)+
+    ylab("Turnover ($Million AUD)")+
+  xlab("Year Month")+
+  theme_minimal()+
+   theme( plot.background = element_rect(fill = "#FFF8F7"),
+    panel.grid.major.y = element_blank(),
+        axis.text.x = element_text(color="#993333", angle=45, size=8),
+    axis.text.y = element_text(colour= "#08007F", size=8))
+```
+
+In figure \@ref(fig:fig23), ACF for ETS seems to have almost 0 value lags after it decays at 12.
+
+```{r fig23, fig.cap="ACF of residuals"}
+both_best2 |> 
+  forecast(h=51) |> 
+  mutate(Turnover.ABS= rep(abs$Turnover,times=2)) |> 
+  mutate(.resid=Turnover.ABS-.mean) |> 
+  as_tsibble() |> 
+  ACF(.resid) |> 
+  autoplot()+
+  theme_minimal()+
+   theme( plot.background = element_rect(fill = "#FFF8F7"),
+    panel.grid.major.y = element_blank(),
+        axis.text.x = element_text(color="#993333", angle=45, size=8),
+    axis.text.y = element_text(colour= "#08007F", size=8))
+```
+
+Figure \@ref(fig:fig24) shows that both the models form a somewhat bi nodal histograms but it it more clear in the case of arima.
+
+```{r fig24, fig.cap="Histogram of residuals"}
+both_best2 |> 
+  forecast(h=51) |> 
+  mutate(Turnover.ABS= rep(abs$Turnover,times=2)) |> 
+  mutate(.resid=Turnover.ABS-.mean) |> 
+  as_tsibble() |> 
+ggplot(aes(x = .resid)) +
+  geom_histogram(aes(y=after_stat(density)), fill = "#6EBA6B")+
+  geom_density(color = "#6C03A0")+
+  facet_grid(~.model)+
+  theme_minimal()+
+   theme( plot.background = element_rect(fill = "#FFF8F7"),
+    panel.grid.major.y = element_blank(),
+        axis.text.x = element_text(color="#993333", angle=45, size=8),
+    axis.text.y = element_text(colour= "#08007F", size=8))
+```
 
 # Benefits and limitations of the models for the data.
 
@@ -696,7 +848,7 @@ both_best |>
 
 - ETS modeling gives more significance to recent observation.
 
-- ETS was unpredictible as it predicted ANA and could not handle trend well.
+- ETS was unpredictable as it predicted ANA and could not handle trend well.
 
 - The value of ETS forecasts when compared to the actual values, were lagging behind as compared to ARIMA forecasts.
 
