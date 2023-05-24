@@ -18,6 +18,7 @@ library(fpp3)
 library(tidyverse)
 library(kableExtra)
 library(viridis)
+library(readabs)
 ```
 
 ```{r, echo=FALSE, fig.align='center', fig.width=10}
@@ -363,160 +364,355 @@ This shows that no more difference is needed, i.e. no need to perform step 3 of 
 
 # Methodology used to create a short-list of appropriate ARIMA models and ETS models. (Includes AIC values as well as results from applying the models to a test-set consisting of the last 24 months of the data provided).
 
-ETS
+## ETS
 
-```{r}
-myseries |> 
-autoplot(box_cox(Turnover, lambda))
+For this a test and a train data set is prepared with test set being for the last 24 years, i.e. 2017 and 2018 and rest being the training set.
 
-view <- myseries
-```
-
-This has trend and seasonality
-
-```{r}
+```{r test_train}
 test <- myseries |> 
-  filter(Month > yearmonth("2009 Dec"))
+  filter(Month >= yearmonth("2017 Jan"))
 
 train <- myseries |> 
-  filter(Month <= yearmonth("2009 Dec"))
+  filter(Month < yearmonth("2017 Jan"))
 ```
 
-Selecting ETS
+### Shortlist of ETS models with results
 
-This is a multiplicative seasonal series. This is also the case for error and it follows a general additive trend. The appropriate models could be (MAM), (MNM) or (MAdM)
+Observing figure \@ref(fig:fig9), we can say that error and seasonality are multiplicative. There is somewhat an upward trend which can be called as additive. The appropriate models could be (MAM), (MNM) or (MAdM). Also here the seasonality component we can also use the additive compoment to the sesonality which leads to ETS models (M,N,A) or (A,Ad,A)
 
-```{r}
-fit2 <- train |> 
+```{r etsfit}
+ets_fit <- train |> 
   model(MAM= ETS(box_cox(Turnover, lambda)~ error("M")+ trend("A")+ season("M")),
         MNM= ETS(box_cox(Turnover, lambda)~ error("M")+ trend("N")+ season("M")),
         MAdM= ETS(box_cox(Turnover, lambda)~ error("M")+ trend("Ad")+ season("M")),
+        MNA= ETS(box_cox(Turnover, lambda)~ error("M")+ trend("N")+ season("A")),
+        MAdM= ETS(box_cox(Turnover, lambda)~ error("A")+ trend("Ad")+ season("A")),
         ets_auto= ETS(box_cox(Turnover, lambda))
         )
 
-report(fit2)
-glance(fit2)
-tidy(fit2)
-accuracy(fit2)
+glance(ets_fit)
 ```
 
-```{r}
-fit2 |> 
-  forecast(h=24) |> 
-  autoplot(train, level = NULL)
+Here the results are discussed for the shortlisted 3 models and the automatic model chosen. It is observed that the AICc value is the lowest for the automatic ETS model created.
+
+```{r reportetsbest}
+ets_fit |> 
+  select(ets_auto) |> 
+  report()
 ```
 
-```{r}
-fit2 |> 
+The best model reported here is (ANA)
+
+```{r accuracy}
+ets_fit |> 
   forecast(h=24) |> 
   accuracy(myseries)
 ```
 
+We observe that the models MAdM and ANA have the same results other than just one where the valuse for ANA is the lowest and hence we select ETS (ANA) as the best model.
 
-ARIMA
+## ARIMA
 
-```{r}
-train |> 
-  gg_tsdisplay(difference(box_cox(Turnover, lambda), lag=12), plot_type = "partial")
-```
+Referring to figure \@ref(fig:fig10), we find the (pdq) and (PDQ)12 (lag 12). We know that d=0, D=1 (seasonal difference)
 
-
-Finding (p,d,q) and (P,D,Q)
-d=0, D=1
-For q we look at ACF plot and significant lags before 12 is only 1st, can be 2nd too. So q=1 or can be q=2.
-In PACF, sig lag is on 13th , so p=1 .
+For q we look at ACF plot and significant lags before 12 is only 1st, can be 2nd too. So q=1 or can be q=2. In PACF, significant lag is on 13th , so p=1 .
 
 Hence (p,d,q)= (1,0,1) (2,0,1) (0,0,1) (2,0,0) (1,0,2) (2,0,2) (0,0,2) (2,0,0)
+Also, p=0 (when we only observe ACF) and q=0 (when we only observe PACF)
 
 For seasonal values, we only look at seasonal lags, i.e. multiples of 12.
-Here we did 1 difference so D=1
-looking at ACF, Q=0 as ACF quickly decays to 0.
-from PACF, only lag at 12  and 24 seem significant so P=2
-Hence (P,D,Q)= (2,1,0)
+Looking at ACF, Q=0 as ACF quickly decays to 0 and the first lag can be significant so Q=1. And from PACF, only lag at 12  and 24 seems to have  significant lags, so P=2. Also even the first lag is not as significant so P=0
+
+Hence (P,D,Q)= (2,1,0) (0,1,1)
 
 Looking at the time plot, the average is not the center so a constant can be present.
 
-Trying combinations
+### Shortlisting of ARIMA models with results
 
-```{r}
-fit <- train |> 
+```{r fit_arima}
+arima_fit <- train |> 
   model(
     arima101210= ARIMA(box_cox(Turnover, lambda) ~ pdq(1,0,1) +PDQ(2,1,0)),
     arima201210= ARIMA(box_cox(Turnover, lambda) ~ pdq(2,0,1) +PDQ(2,1,0)),
-    arima_auto= ARIMA(box_cox(Turnover, lambda) , trace = TRUE, stepwise = FALSE)
+    arima001210= ARIMA(box_cox(Turnover, lambda) ~ pdq(0,0,1) +PDQ(2,1,0)),
+    arima201210= ARIMA(box_cox(Turnover, lambda) ~ pdq(2,0,1) +PDQ(2,1,0)),
+    arima101011= ARIMA(box_cox(Turnover, lambda) ~ pdq(1,0,1) +PDQ(0,1,1)),
+    arima102111= ARIMA(box_cox(Turnover, lambda) ~ pdq(1,0,2) +PDQ(1,1,1)),
+    arima_auto= ARIMA(box_cox(Turnover, lambda) , trace = TRUE)
 ) 
 
-tidy(fit)
-glance(fit)
+tidy(arima_fit)
 ```
 
-```{r}
-fit |> 
-  forecast(h=24) |> 
-  autoplot(train, level=NULL)
+Here the estimate parameter shows that it has some constants.
+
+```{r glance}
+glance(arima_fit)
 ```
 
-```{r}
-fit |> 
+This shows the lowest AICc value is for the automatic arima model which is just slightly lower than (102)(111) model
+
+```{r report_arima}
+arima_fit |> 
+  select(arima_auto) |> 
+  report()
+```
+
+The automatic ARIMA reported is (102)(011) which is the best model.
+
+```{r accuracy_arima}
+arima_fit |> 
   forecast(h=24) |> 
   accuracy(myseries)
 ```
 
 # Choosing one ARIMA model and one ETS model based on this analysis and showing parameter estimates, residual diagnostics, forecasts and prediction intervals for both models. Also diagnostic checking for both models including ACF graphs and the Ljung-Box test is shown. 
 
-ARIMA
-p,d,q- 
+The best ETS model chosen is ANA
 
-```{r}
-myseries |> 
-  gg_tsdisplay(difference(box_cox(Turnover, lambda)), plot_type = "partial")
+```{r tidyets}
+ets_fit |> 
+  select(ets_auto) |> 
+  tidy()
 ```
 
-```{r}
-myseries |> 
-  model(ARIMA(box_cox(Turnover, lambda))) |> 
-  tidy()
-``` 
+And the best ARIMA model is (102)(011)
 
+```{r tidyarima}
+arima_fit |> 
+  select(arima_auto) |> 
+  tidy()
+```
+
+## ETS
+
+### Residuals
+
+Figure \@ref(fig:fig12) shows residuals for best ETS model. It is observed that it is fairly normally distributed. ACF shows somewhat white noise, i.e. there are some residuals left but they are not significant.
+
+```{r fig12, fig.cap="Residuals ETS"}
+gg_tsresiduals(ets_fit |> 
+                 select(ets_auto))
+```
+
+### Forecast
+
+```{r fig13, forecast_ets}
+ets_fit  |> 
+   select(State, Industry, ets_auto) |> 
+  forecast(h=24) |> 
+  autoplot(myseries)
+```
+
+```{r augement_ets}
+ets_fit |> 
+  select(ets_auto) |> 
+  augment()
+```
+
+### Prediction Intervals
+
+```{r pred_ets}
+ets_fit |> 
+  select(ets_auto) |> 
+  forecast(h=24) |> 
+  hilo(level=95)
+```
+
+### ACF for ETS best model
+
+Zooming in on figure \@ref(fig:fig12), figure \@ref(fig:fig14) suggests autocorrelation.
+
+```{r fig14, fig.cap="ACF Diagnostics for ETS best model"}
+augment(ets_fit) |> 
+  filter(.model== "ets_auto") |> 
+  ACF(.innov) |>
+  autoplot() 
+```
+
+###  Ljung-Box test
+
+This test uses the Hypothesis Ho that the residuals are independently distributed.
+
+```{r lj_ets}
+augment(ets_fit) |> 
+  filter(.model== "ets_auto") |> 
+  features(.innov, ljung_box, lag=24, dof=18)
+```
+
+Here the p value is <0.05, suggesting that the values are autocorrelated, rejecting the null hypothesis.
+
+## ARIMA
+
+Figure \@ref(fig:fig15) shows a normal distribution and white noise.
+
+```{r fig15, fig.cap="Residuals ARIMA"}
+gg_tsresiduals(arima_fit |> 
+                 select(arima_auto))
+```
+
+### Forecast
+
+```{r fig16, forecast_arima}
+arima_fit  |> 
+   select(State, Industry, arima_auto) |> 
+  forecast(h=24) |> 
+  autoplot(myseries)
+```
+
+```{r augment_arima}
+arima_fit |> 
+  select(arima_auto) |> 
+  augment()
+```
+
+### Prediction Intervals
+
+```{r pred_in_arima}
+arima_fit |> 
+  select(arima_auto) |> 
+  forecast(h=24) |> 
+  hilo(level=95)
+```
+
+### Diagnostic test: ACF
+
+Figure \@ref(fig:fig17) shows that most residuals are within the blue line, showing white noise.
+
+```{r fig17, fig.cap="ACF for best fit ARIMA model"}
+augment(arima_fit) |> 
+  filter(.model== "arima_auto") |> 
+ ACF(.innov) |>
+  autoplot() 
+```
+
+###  Ljung-Box test
+
+```{r Lj_arima}
+augment(arima_fit) |> 
+  filter(.model== "arima_auto") |> 
+  features(.innov, ljung_box, lag=36, dof=24)
+```
+
+Here, p value is <0.05 rejecting the Null Hypothesis.
 
 # Comparison of the results from each of the preferred models and the best method for better forecasts (reference to the test-set).
 
+## Comparison
 
+- Both the models show somehwat a normal distribution and white noise in the data (figure \@ref(fig:fig12) and \@ref(fig:fig15).
+
+- The forecasts are similar for both models, but when augmented, the ETS has more negative values in .resid and .innov.
+
+- The prediction intervals in the ARIMA model are narrower than the ETS model.
+
+- Both show a value <0.05 in the Ljung test.
+
+## Best method for better forecast for test set
+
+```{r fig18}
+both_best <- train |> 
+  model(
+  ets_auto= ETS(box_cox(Turnover, lambda)),
+arima_auto= ARIMA(box_cox(Turnover, lambda))
+)
+
+both_best |> 
+  forecast(h=24) |> 
+  autoplot(test)
+  
+```
+
+Comparing figure \@ref(fig:fig18) with \@ref(fig:fig13) which is the overall forecast and comparison between both best bodels too, it shows that prediction intervals are narrow in best ARIMA.
+
+```{r acc_both}
+both_best |> 
+  forecast(h=24) |> 
+  accuracy(myseries)
+```
+
+The accuracy values are lower for best arima model, suggessting better forecasts.
 
 
 # Applying the two chosen models to the full data set, re-estimating the parameters but not changing the model structure. Producing out-of-sample point forecasts and 80% prediction intervals for each model for two years past the end of the data provided.
 
 ```{r}
-myseries |> 
-  model(auto= ARIMA(box_cox(Turnover, lambda), trace=FALSE) ,
-        ets=ETS(box_cox(Turnover, lambda)~ trend("M"))
-        )|> 
-  forecast(h=10, time=100) |> 
-  autoplot(myseries)
+both_best2 <- myseries |> 
+  model(
+  ets_auto= ETS(box_cox(Turnover, lambda)),
+arima_auto= ARIMA(box_cox(Turnover, lambda))
+)
 ```
 
-When multiplicative trend in ETS, the plots are very similar.
 
-```{r}
-myseries |> 
-  model(auto= ARIMA(box_cox(Turnover, lambda), trace=FALSE) ,
-        ets=ETS(box_cox(Turnover, lambda)~ trend("M"))
-        )|> 
-  accuracy()
+\@ref(fig:fig19) shows forecast of two best models on full dataset with 80% prediction interval.
+
+```{r fig19}
+both_best2 |> 
+  forecast(h=24) |> 
+  autoplot(myseries, level=80)+
+  facet_wrap(~.model)
 ```
 
-```{r}
-myseries |> 
-  model(auto= ARIMA(box_cox(Turnover, lambda), trace=FALSE) ,
-        ets=ETS(box_cox(Turnover, lambda)~ trend("M"))
-        )|> 
-  select(ets) |> 
-  gg_tsresiduals()
+# Obtaining up-to-date data from the [ABS website](https://www.abs.gov.au/statistics/industry/retail-and-wholesale-trade/retail-trade-australia). - using the previous release of data, rather than the latest release and comparing above forecasts with the actual numbers.
+
+```{r absdata}
+abs_retail_data <- read_abs( "8501.0", tables = "11")
 ```
 
-# Obtaining up-to-date data from the [ABS website](https://www.abs.gov.au/statistics/industry/retail-and-wholesale-trade/retail-trade-australia Table 11). - using the previous release of data, rather than the latest release and comparing above forecasts with the actual numbers.
+```{r abs}
+abs <- abs_retail_data |> 
+  separate(series, into = c("extra","State","Industry"),sep = ";") |> 
+    mutate(Month= yearmonth(date),
+           State = trimws(State),
+           Industry=trimws(Industry)) |> 
+    select(Month, State, value, Industry) |> 
+  filter(State == "South Australia") |> 
+  filter(Industry== "Hardware, building and garden supplies retailing") |> 
+  rename(Turnover=value) |> 
+  filter(Month > yearmonth("2018 Dec")) 
+
+
+```
+
+```{r fig20}
+abs |> 
+  ggplot(aes(x=Month, y=Turnover))+
+  geom_line()
+
+both_best |> 
+  forecast(h=72) |> 
+  autoplot()
+```
+
 
 # Benefits and limitations of the models for the data.
+
+- The ETS model chosen was ANA and ARIMS model chosen was (102)(011).
+
+- ETS models are considered to be stationary and ARIMA models are considered non-stationary. 
+
+- ARIMA models fits the training data slightly better than ETS.
+
+- ETS modeling gives more significance to recent observation.
+
+- ETS was unpredictible as it predicted ANA and could not handle trend well.
+
+- The value of ETS forecasts when compared to the actual values, were lagging behind as compared to ARIMA forecasts.
+
+- Outliers affect ARIMA modeling results and hence a duplicate test was done before the modeling process.
+
+Below the accuracy for both models are compared with reference to the test set and it is see that ARIMA has better values and therefore, slightly more accurate.
+
+```{r}
+bind_rows(
+    arima_fit |> select(arima_auto) |> accuracy(),
+    ets_fit |>  select(ets_auto) |> accuracy(),
+  arima_fit |> select(arima_auto) |> forecast(h=10) |> accuracy(test),
+    ets_fit |>  select(ets_auto) |> forecast(h=10) |>  accuracy(test)
+  )
+```
+
 
 # References 
 
